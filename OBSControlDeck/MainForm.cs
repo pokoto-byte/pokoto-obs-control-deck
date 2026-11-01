@@ -56,10 +56,44 @@ namespace OBSControlDeck
         private string? _replayOpHotkeyRequestId;
         private CancellationTokenSource? _replayFeedbackCts;
 
+        private const string GitHubUrl = "https://github.com/pokoto-byte/pokoto-obs-control-deck";
+        private const string ObsForumUrl = "https://obsproject.com/forum/resources/pokoto-obs-control-deck.2827/";
+
+        private static string GetApplicationVersion()
+        {
+            var assembly = typeof(MainForm).Assembly;
+            var informational = assembly
+                .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+                .FirstOrDefault()?.InformationalVersion;
+            if (!string.IsNullOrWhiteSpace(informational))
+            {
+                var plus = informational.IndexOf('+');
+                return plus >= 0 ? informational[..plus] : informational;
+            }
+            return assembly.GetName().Version?.ToString(3) ?? string.Empty;
+        }
+
+        private static void OpenLink(string url)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private void lnkGitHub_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e) => OpenLink(GitHubUrl);
+
+        private void lnkObsForum_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e) => OpenLink(ObsForumUrl);
+
         public MainForm()
         {
             _passwordFile = Path.Combine(_configDir, "password.txt");
             InitializeComponent();
+            lblAboutVersion.Text = "Version " + GetApplicationVersion();
             tvObsItems.BeforeCheck += TvObsItems_BeforeCheck;
             tvObsItems.AfterCheck += TvObsItems_AfterCheck;
             _functionButtons = new[]

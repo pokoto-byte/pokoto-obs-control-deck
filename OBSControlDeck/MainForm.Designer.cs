@@ -118,6 +118,15 @@
             lblPassword = new Label();
             txtPassword = new TextBox();
             btnConnect = new Button();
+            grpAbout = new GroupBox();
+            lblAboutProduct = new Label();
+            lblAboutVersion = new Label();
+            lblAboutAuthor = new Label();
+            lnkGitHub = new LinkLabel();
+            lnkObsForum = new LinkLabel();
+            lblAboutOpenSource = new Label();
+            lblAboutDisclaimer = new Label();
+            lblAboutDevelopment = new Label();
             tabMain.SuspendLayout();
             tabControl.SuspendLayout();
             grpFunctionTexts.SuspendLayout();
@@ -132,6 +141,7 @@
             tabPage1.SuspendLayout();
             grpProfiles.SuspendLayout();
             grpConnection.SuspendLayout();
+            grpAbout.SuspendLayout();
             SuspendLayout();
             // 
             // lblObsStatus
@@ -658,6 +668,7 @@
             tabPage1.Controls.Add(chkAutoConnect);
             tabPage1.Controls.Add(grpProfiles);
             tabPage1.Controls.Add(grpConnection);
+            tabPage1.Controls.Add(grpAbout);
             tabPage1.Location = new Point(4, 29);
             tabPage1.Margin = new Padding(3, 4, 3, 4);
             tabPage1.Name = "tabPage1";
@@ -838,6 +849,104 @@
             btnConnect.Text = "CONNETTI";
             btnConnect.UseVisualStyleBackColor = true;
             // 
+            // grpAbout
+            // 
+            grpAbout.Controls.Add(lblAboutDevelopment);
+            grpAbout.Controls.Add(lblAboutDisclaimer);
+            grpAbout.Controls.Add(lblAboutOpenSource);
+            grpAbout.Controls.Add(lnkObsForum);
+            grpAbout.Controls.Add(lnkGitHub);
+            grpAbout.Controls.Add(lblAboutAuthor);
+            grpAbout.Controls.Add(lblAboutVersion);
+            grpAbout.Controls.Add(lblAboutProduct);
+            grpAbout.Location = new Point(3, 372);
+            grpAbout.Margin = new Padding(3, 4, 3, 4);
+            grpAbout.Name = "grpAbout";
+            grpAbout.Padding = new Padding(3, 4, 3, 4);
+            grpAbout.Size = new Size(240, 260);
+            grpAbout.TabIndex = 9;
+            grpAbout.TabStop = false;
+            grpAbout.Text = "ABOUT";
+            // 
+            // lblAboutProduct
+            // 
+            lblAboutProduct.AutoSize = true;
+            lblAboutProduct.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblAboutProduct.Location = new Point(9, 26);
+            lblAboutProduct.Name = "lblAboutProduct";
+            lblAboutProduct.Size = new Size(165, 20);
+            lblAboutProduct.TabIndex = 0;
+            lblAboutProduct.Text = "Pokoto OBS Control Deck";
+            // 
+            // lblAboutVersion
+            // 
+            lblAboutVersion.AutoSize = true;
+            lblAboutVersion.Location = new Point(9, 50);
+            lblAboutVersion.Name = "lblAboutVersion";
+            lblAboutVersion.Size = new Size(60, 20);
+            lblAboutVersion.TabIndex = 1;
+            lblAboutVersion.Text = "Version";
+            // 
+            // lblAboutAuthor
+            // 
+            lblAboutAuthor.AutoSize = true;
+            lblAboutAuthor.Location = new Point(9, 74);
+            lblAboutAuthor.Name = "lblAboutAuthor";
+            lblAboutAuthor.Size = new Size(120, 20);
+            lblAboutAuthor.TabIndex = 2;
+            lblAboutAuthor.Text = "Created by Pokoto";
+            // 
+            // lnkGitHub
+            // 
+            lnkGitHub.AutoSize = true;
+            lnkGitHub.Location = new Point(9, 102);
+            lnkGitHub.Name = "lnkGitHub";
+            lnkGitHub.Size = new Size(60, 20);
+            lnkGitHub.TabIndex = 3;
+            lnkGitHub.TabStop = true;
+            lnkGitHub.Text = "GitHub";
+            lnkGitHub.LinkClicked += lnkGitHub_LinkClicked;
+            // 
+            // lnkObsForum
+            // 
+            lnkObsForum.AutoSize = true;
+            lnkObsForum.Location = new Point(90, 102);
+            lnkObsForum.Name = "lnkObsForum";
+            lnkObsForum.Size = new Size(80, 20);
+            lnkObsForum.TabIndex = 4;
+            lnkObsForum.TabStop = true;
+            lnkObsForum.Text = "OBS Forum";
+            lnkObsForum.LinkClicked += lnkObsForum_LinkClicked;
+            // 
+            // lblAboutOpenSource
+            // 
+            lblAboutOpenSource.AutoSize = true;
+            lblAboutOpenSource.Location = new Point(9, 130);
+            lblAboutOpenSource.Name = "lblAboutOpenSource";
+            lblAboutOpenSource.Size = new Size(130, 20);
+            lblAboutOpenSource.TabIndex = 5;
+            lblAboutOpenSource.Text = "Free & Open Source";
+            // 
+            // lblAboutDisclaimer
+            // 
+            lblAboutDisclaimer.Font = new Font("Segoe UI", 8F);
+            lblAboutDisclaimer.ForeColor = SystemColors.GrayText;
+            lblAboutDisclaimer.Location = new Point(9, 162);
+            lblAboutDisclaimer.Name = "lblAboutDisclaimer";
+            lblAboutDisclaimer.Size = new Size(225, 36);
+            lblAboutDisclaimer.TabIndex = 6;
+            lblAboutDisclaimer.Text = "Independent community project." + Environment.NewLine + "Not affiliated with the OBS Project.";
+            // 
+            // lblAboutDevelopment
+            // 
+            lblAboutDevelopment.Font = new Font("Segoe UI", 8F);
+            lblAboutDevelopment.ForeColor = SystemColors.GrayText;
+            lblAboutDevelopment.Location = new Point(9, 202);
+            lblAboutDevelopment.Name = "lblAboutDevelopment";
+            lblAboutDevelopment.Size = new Size(225, 36);
+            lblAboutDevelopment.TabIndex = 7;
+            lblAboutDevelopment.Text = "Developed with assistance from" + Environment.NewLine + "Microsoft Copilot and GitHub Copilot";
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
@@ -871,6 +980,8 @@
             grpProfiles.PerformLayout();
             grpConnection.ResumeLayout(false);
             grpConnection.PerformLayout();
+            grpAbout.ResumeLayout(false);
+            grpAbout.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -878,6 +989,15 @@
         #endregion
 
         private TabPage tabPage1;
+        private GroupBox grpAbout;
+        private Label lblAboutProduct;
+        private Label lblAboutVersion;
+        private Label lblAboutAuthor;
+        private LinkLabel lnkGitHub;
+        private LinkLabel lnkObsForum;
+        private Label lblAboutOpenSource;
+        private Label lblAboutDisclaimer;
+        private Label lblAboutDevelopment;
         private GroupBox grpConnection;
         private TextBox txtHost;
         private Label lblHost;
