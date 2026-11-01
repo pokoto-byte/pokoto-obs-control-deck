@@ -1,3 +1,7 @@
 <Solution>
+  <Folder Name="/Elementi di soluzione/">
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
   <Project Path="OBSControlDeck/OBSControlDeck.csproj" />
 </Solution>
