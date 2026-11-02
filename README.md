@@ -6,7 +6,31 @@ Pokoto OBS Control Deck was originally created for my own live sports production
 
 The application connects directly to OBS through OBS WebSocket and automatically reads the available scenes, sources and hotkeys.
 
-![Pokoto OBS Control Deck running beside OBS Studio](screenshots/main.png)
+(screenshots/main.png)
+
+## Download
+
+### [Download the latest version](https://github.com/pokoto-byte/pokoto-obs-control-deck/releases/latest)
+
+Windows x64 • Self-contained • No installation required
+
+Open the Latest Release and download:
+
+`PokotoOBSControlDeck-vX.X.X.exe`
+
+### Windows SmartScreen Notice
+
+Pokoto OBS Control Deck is currently distributed as an unsigned application. Microsoft Defender SmartScreen may therefore show a "Windows protected your PC" message or report an unrecognized app. This can happen because the application is new and does not yet have an established publisher reputation.
+
+If you downloaded Pokoto OBS Control Deck from the official GitHub repository:
+
+1. Click **More info**.
+2. Verify the executable name.
+3. Click **Run anyway**.
+
+There is no need to disable Microsoft Defender or SmartScreen.
+
+For security, always download Pokoto OBS Control Deck from the official GitHub Releases page.
 
 ## Features
 
