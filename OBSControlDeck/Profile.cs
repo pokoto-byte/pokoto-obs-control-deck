@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace OBSControlDeck
@@ -7,6 +8,23 @@ namespace OBSControlDeck
         public string? SceneName { get; set; }
         public string? HotkeyName { get; set; }
         public string? HotkeyOnlyDisplayName { get; set; }
+    }
+
+    public class SourceAutoOffSetting
+    {
+        public const int MinDelaySeconds = 1;
+        public const int MaxDelaySeconds = 3600;
+        public const int DefaultDelaySeconds = 5;
+
+        private int _delaySeconds = DefaultDelaySeconds;
+
+        public bool Enabled { get; set; } = false;
+
+        public int DelaySeconds
+        {
+            get => _delaySeconds;
+            set => _delaySeconds = Math.Clamp(value, MinDelaySeconds, MaxDelaySeconds);
+        }
     }
 
     public class Profile
@@ -43,6 +61,13 @@ namespace OBSControlDeck
         public List<SceneButtonSlot?>? SceneButtonSlots { get; set; }
 
         public Dictionary<string, string> SceneAliases { get; set; } = new();
+
+        private Dictionary<string, Dictionary<string, SourceAutoOffSetting>> _sourceAutoOffSettings = new();
+        public Dictionary<string, Dictionary<string, SourceAutoOffSetting>> SourceAutoOffSettings
+        {
+            get => _sourceAutoOffSettings;
+            set => _sourceAutoOffSettings = value ?? new();
+        }
         public bool SceneAliasesMigrated { get; set; } = false;
 
         // Future extensible

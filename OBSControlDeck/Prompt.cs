@@ -18,7 +18,7 @@ namespace OBSControlDeck
             textBox.Text = defaultText;
 
             buttonOk.Text = "OK";
-            buttonCancel.Text = "Annulla";
+            buttonCancel.Text = "Cancel";
             buttonOk.DialogResult = DialogResult.OK;
             buttonCancel.DialogResult = DialogResult.Cancel;
 

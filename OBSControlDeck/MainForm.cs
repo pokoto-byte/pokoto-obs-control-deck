@@ -89,6 +89,8 @@ namespace OBSControlDeck
 
         private void lnkObsForum_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e) => OpenLink(ObsForumUrl);
 
+        private void lnkSupportProject_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e) => OpenLink("https://ko-fi.com/pokoto");
+
         public MainForm()
         {
             _passwordFile = Path.Combine(_configDir, "password.txt");
@@ -177,7 +179,8 @@ namespace OBSControlDeck
             btnSaveReplay.ContextMenuStrip = cmsButtonRename;
             _mnuAssignHotkey.Click += MnuAssignHotkey_Click;
             _mnuRemoveHotkey.Click += MnuRemoveHotkey_Click;
-            cmsButtonRename.Items.AddRange(new ToolStripItem[] { _mnuAssignHotkey, _mnuRemoveHotkey });
+            _mnuAutoOff.Click += MnuAutoOff_Click;
+                        cmsButtonRename.Items.AddRange(new ToolStripItem[] { _mnuAssignHotkey, _mnuRemoveHotkey, _mnuAutoOff });
 
             // legacy: try to read standalone password file if present and no profile provided it
             try
@@ -257,6 +260,7 @@ namespace OBSControlDeck
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             base.OnFormClosing(e);
+            if (!e.Cancel) CancelAllAutoOff();
             if (e.Cancel || WindowState != FormWindowState.Normal) return;
             try
             {
@@ -425,12 +429,12 @@ namespace OBSControlDeck
             var host = txtHost.Text.Trim();
             if (host.Length == 0 || !int.TryParse(txtPort.Text.Trim(), out var port) || port < 1 || port > 65535)
             {
-                ShowError("Host o porta non validi.");
+                ShowError("Invalid host or port.");
                 return;
             }
 
             btnConnect.Enabled = false;
-            btnConnect.Text = "CONNESSIONE...";
+            btnConnect.Text = "CONNECTING...";
 
             var cts = new CancellationTokenSource(HandshakeTimeout);
             try
@@ -449,7 +453,7 @@ namespace OBSControlDeck
                 var timedOut = cts.IsCancellationRequested;
                 cts.Dispose();
                 UpdateDisconnectedUi();
-                ShowError(timedOut ? "Timeout: OBS non ha risposto entro 10 secondi." : DescribeError(ex));
+                ShowError(timedOut ? "Timeout: OBS did not respond within 10 seconds." : DescribeError(ex));
             }
             finally
             {
@@ -493,7 +497,7 @@ namespace OBSControlDeck
                 var hello = await ReceiveJsonAsync(ws, ct);
                 if (GetOp(hello) != 0)
                 {
-                    throw new InvalidDataException("Risposta inattesa da OBS: messaggio Hello non ricevuto.");
+                    throw new InvalidDataException("Unexpected response from OBS: Hello message not received.");
                 }
 
                 var helloData = hello["d"];
@@ -510,7 +514,7 @@ namespace OBSControlDeck
                 {
                     if (string.IsNullOrEmpty(password))
                     {
-                        throw new InvalidOperationException("OBS richiede una password: inseriscila nella scheda SETTINGS.");
+                        throw new InvalidOperationException("OBS requires a password: enter it in the CONNECT tab.");
                     }
 
                     var challenge = auth["challenge"]?.GetValue<string>() ?? string.Empty;
@@ -524,7 +528,7 @@ namespace OBSControlDeck
                 var identified = await ReceiveJsonAsync(ws, ct);
                 if (GetOp(identified) != 2)
                 {
-                    throw new InvalidDataException("Risposta inattesa da OBS: messaggio Identified non ricevuto.");
+                    throw new InvalidDataException("Unexpected response from OBS: Identified message not received.");
                 }
 
                 return ws;
@@ -548,7 +552,7 @@ namespace OBSControlDeck
         private static async Task<JsonNode> ReceiveJsonAsync(ClientWebSocket ws, CancellationToken ct)
         {
             var text = await ReceiveTextAsync(ws, ct);
-            return JsonNode.Parse(text) ?? throw new InvalidDataException("Messaggio JSON vuoto ricevuto da OBS.");
+            return JsonNode.Parse(text) ?? throw new InvalidDataException("Empty message received from OBS.");
         }
 
         // Riceve un messaggio completo, anche se frammentato in più frame.
@@ -666,6 +670,7 @@ namespace OBSControlDeck
                             if (evSceneName != null && evSceneItemId != null && evEnabled != null)
                             {
                                 ApplyConfirmedStateToButtons(new FunctionSlot(evSceneName, string.Empty, evSceneItemId), evEnabled.Value);
+                                HandleAutoOffStateEvent(evSceneName, evSceneItemId.Value, evEnabled.Value);
                             }
                         }
                         else if (msg != null && GetOp(msg) == 7 && msg["d"]?["requestId"]?.GetValue<string>() is string hkRid && hkRid.StartsWith(HotkeyListRequestPrefix))
@@ -753,7 +758,7 @@ namespace OBSControlDeck
                             if (msg["d"]?["requestStatus"]?["result"]?.GetValue<bool>() != true)
                             {
                                 var comment = msg["d"]?["requestStatus"]?["comment"]?.GetValue<string>();
-                                ShowError("OBS non ha modificato la visibilità della Source." + (string.IsNullOrEmpty(comment) ? string.Empty : " " + comment));
+                                ShowError("OBS did not change the Source visibility." + (string.IsNullOrEmpty(comment) ? string.Empty : " " + comment));
                             }
                         }
                         else if (msg != null && GetOp(msg) == 7 && msg["d"]?["requestId"]?.GetValue<string>() is string rid && rid.StartsWith("SetScene-"))
@@ -761,13 +766,13 @@ namespace OBSControlDeck
                             if (msg["d"]?["requestStatus"]?["result"]?.GetValue<bool>() != true)
                             {
                                 var comment = msg["d"]?["requestStatus"]?["comment"]?.GetValue<string>();
-                                ShowError("OBS non ha cambiato scena." + (string.IsNullOrEmpty(comment) ? string.Empty : " " + comment));
+                                ShowError("OBS did not change scene." + (string.IsNullOrEmpty(comment) ? string.Empty : " " + comment));
                             }
                         }
                     }
                     catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
                     {
-                        ShowError("Risposta scene non valida da OBS.");
+                        ShowError("Invalid scene response from OBS.");
                     }
                 }
             }
@@ -790,7 +795,7 @@ namespace OBSControlDeck
             if (data["requestStatus"]?["result"]?.GetValue<bool>() != true)
             {
                 var comment = data["requestStatus"]?["comment"]?.GetValue<string>();
-                ShowError("OBS non ha restituito l'elenco scene." + (string.IsNullOrEmpty(comment) ? string.Empty : " " + comment));
+                ShowError("OBS did not return the scene list." + (string.IsNullOrEmpty(comment) ? string.Empty : " " + comment));
                 return;
             }
 
@@ -972,14 +977,14 @@ namespace OBSControlDeck
                 if (!e.Node!.Checked && tvObsItems.Nodes.Cast<TreeNode>().Count(n => n.Checked) >= MaxSelectedScenes)
                 {
                     e.Cancel = true;
-                    MessageBox.Show(this, "È possibile selezionare al massimo 9 Scene.", "Limite Scene", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show(this, "You can select up to 9 Scenes.", "Scene Limit", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 return;
             }
             if (!e.Node!.Checked && parent.Nodes.Cast<TreeNode>().Count(n => n.Checked) >= MaxSourcesPerScene)
             {
                 e.Cancel = true;
-                MessageBox.Show(this, "Per ogni scena possono essere selezionate al massimo 10 Sources.", "Limite Sources", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, "You can select up to 10 Sources for each Scene.", "Sources Limit", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
@@ -1263,7 +1268,7 @@ namespace OBSControlDeck
             catch (Exception ex)
             {
                 lock (_pendingFunctionRequests) { _pendingFunctionRequests.Remove(requestId); }
-                ShowError("Invio del comando a OBS non riuscito: " + DescribeError(ex));
+                ShowError("Failed to send command to OBS: " + DescribeError(ex));
             }
         }
 
@@ -1294,7 +1299,7 @@ namespace OBSControlDeck
             if (d["requestStatus"]?["result"]?.GetValue<bool>() != true)
             {
                 var comment = d["requestStatus"]?["comment"]?.GetValue<string>();
-                ShowError("OBS non ha restituito lo stato della Source." + (string.IsNullOrEmpty(comment) ? string.Empty : " " + comment));
+                ShowError("OBS did not return the Source state." + (string.IsNullOrEmpty(comment) ? string.Empty : " " + comment));
                 return;
             }
 
@@ -1307,6 +1312,14 @@ namespace OBSControlDeck
             var setId = SetSceneItemEnabledPrefix + (++_functionRequestCounter) + "-" + Guid.NewGuid().ToString("N");
             var ws = _ws;
             if (ws == null || ws.State != WebSocketState.Open) return;
+            if (enabled.Value)
+            {
+                CancelAutoOff(new SourceKey(slot.SceneName, slot.SourceName));
+            }
+            else if (slot.SceneItemId is int markId)
+            {
+                RegisterVoluntaryOn(slot.SceneName, slot.SourceName, markId);
+            }
 
             var setRequest = new JsonObject
             {
@@ -1324,6 +1337,190 @@ namespace OBSControlDeck
                 }
             };
             _ = ws.SendAsync(Encoding.UTF8.GetBytes(setRequest.ToJsonString()), WebSocketMessageType.Text, true, CancellationToken.None);
+        }
+
+        private readonly record struct SourceKey(string SceneName, string SourceName);
+        private readonly record struct SceneItemKey(string SceneName, int SceneItemId);
+        private sealed record VoluntaryOnMarker(string SceneName, string SourceName, int SceneItemId, DateTime ExpiresUtc);
+
+        private const string AutoOffRequestPrefix = "AutoOffSetSceneItemEnabled-";
+        private static readonly TimeSpan VoluntaryMarkerLifetime = TimeSpan.FromSeconds(5);
+        private readonly object _autoOffLock = new();
+        private readonly Dictionary<SourceKey, CancellationTokenSource> _autoOffTimers = new();
+        private readonly Dictionary<SceneItemKey, VoluntaryOnMarker> _voluntaryOnMarkers = new();
+        private readonly Dictionary<SceneItemKey, string> _sceneItemSourceMap = new();
+        private readonly ToolStripMenuItem _mnuAutoOff = new("Auto-Off...") { Visible = false };
+
+        private static void DisposeCts(CancellationTokenSource? cts)
+        {
+            if (cts == null) return;
+            try { cts.Cancel(); } catch { }
+            try { cts.Dispose(); } catch { }
+        }
+
+        private void RegisterVoluntaryOn(string sceneName, string sourceName, int sceneItemId)
+        {
+            lock (_autoOffLock)
+            {
+                _voluntaryOnMarkers[new SceneItemKey(sceneName, sceneItemId)] =
+                    new VoluntaryOnMarker(sceneName, sourceName, sceneItemId, DateTime.UtcNow + VoluntaryMarkerLifetime);
+            }
+        }
+
+        private void CancelAutoOff(SourceKey key)
+        {
+            CancellationTokenSource? cts;
+            lock (_autoOffLock)
+            {
+                if (!_autoOffTimers.Remove(key, out cts)) cts = null;
+                var stale = _voluntaryOnMarkers.Where(m => m.Value.SceneName == key.SceneName && m.Value.SourceName == key.SourceName).Select(m => m.Key).ToList();
+                foreach (var k in stale) _voluntaryOnMarkers.Remove(k);
+            }
+            DisposeCts(cts);
+        }
+
+        private void CancelAllAutoOff()
+        {
+            List<CancellationTokenSource> list;
+            lock (_autoOffLock)
+            {
+                list = _autoOffTimers.Values.ToList();
+                _autoOffTimers.Clear();
+                _voluntaryOnMarkers.Clear();
+            }
+            foreach (var c in list) DisposeCts(c);
+        }
+
+        private SourceAutoOffSetting? GetAutoOffSetting(Profile? profile, string sceneName, string sourceName)
+        {
+            if (profile == null) return null;
+            return profile.SourceAutoOffSettings.TryGetValue(sceneName, out var map) && map != null && map.TryGetValue(sourceName, out var s) ? s : null;
+        }
+
+        private void HandleAutoOffStateEvent(string sceneName, int sceneItemId, bool enabled)
+        {
+            var itemKey = new SceneItemKey(sceneName, sceneItemId);
+            if (!enabled)
+            {
+                string? source;
+                lock (_autoOffLock)
+                {
+                    _sceneItemSourceMap.TryGetValue(itemKey, out source);
+                    if (source == null && _voluntaryOnMarkers.TryGetValue(itemKey, out var pending)) source = pending.SourceName;
+                    _voluntaryOnMarkers.Remove(itemKey);
+                }
+                if (source != null) CancelAutoOff(new SourceKey(sceneName, source));
+                return;
+            }
+
+            VoluntaryOnMarker? marker;
+            lock (_autoOffLock)
+            {
+                if (!_voluntaryOnMarkers.Remove(itemKey, out marker)) marker = null;
+            }
+            if (marker == null || marker.ExpiresUtc < DateTime.UtcNow) return;
+            var sourceName = marker.SourceName;
+            if (_sceneItemSourceMap.TryGetValue(itemKey, out var mapped) && !string.IsNullOrEmpty(mapped)) sourceName = mapped;
+            var profile = _activeProfile;
+            var setting = GetAutoOffSetting(profile, sceneName, sourceName);
+            if (profile == null || setting == null || !setting.Enabled) return;
+            StartAutoOff(profile, new SourceKey(sceneName, sourceName), sceneItemId, Math.Clamp(setting.DelaySeconds, 1, 3600));
+        }
+
+        private void StartAutoOff(Profile profile, SourceKey key, int sceneItemId, int delaySeconds)
+        {
+            var cts = new CancellationTokenSource();
+            CancellationTokenSource? previous;
+            lock (_autoOffLock)
+            {
+                if (!_autoOffTimers.Remove(key, out previous)) previous = null;
+                _autoOffTimers[key] = cts;
+            }
+            DisposeCts(previous);
+            _ = RunAutoOffAsync(profile, key, sceneItemId, delaySeconds, cts);
+        }
+
+        private async Task RunAutoOffAsync(Profile profile, SourceKey key, int sceneItemId, int delaySeconds, CancellationTokenSource cts)
+        {
+            try
+            {
+                var token = cts.Token;
+                await Task.Delay(TimeSpan.FromSeconds(delaySeconds), token).ConfigureAwait(false);
+
+                lock (_autoOffLock)
+                {
+                    if (token.IsCancellationRequested) return;
+                    if (!_autoOffTimers.TryGetValue(key, out var current) || !ReferenceEquals(current, cts)) return;
+                    _autoOffTimers.Remove(key);
+                }
+                if (!ReferenceEquals(_activeProfile, profile)) return;
+                var ws = _ws;
+                if (ws == null || ws.State != WebSocketState.Open) return;
+
+                var request = new JsonObject
+                {
+                    ["op"] = 6,
+                    ["d"] = new JsonObject
+                    {
+                        ["requestType"] = "SetSceneItemEnabled",
+                        ["requestId"] = AutoOffRequestPrefix + Guid.NewGuid().ToString("N"),
+                        ["requestData"] = new JsonObject
+                        {
+                            ["sceneName"] = key.SceneName,
+                            ["sceneItemId"] = sceneItemId,
+                            ["sceneItemEnabled"] = false
+                        }
+                    }
+                };
+                await ws.SendAsync(Encoding.UTF8.GetBytes(request.ToJsonString()), WebSocketMessageType.Text, true, CancellationToken.None).ConfigureAwait(false);
+                DisposeCts(cts);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Auto-Off failed: " + ex.Message);
+                DisposeCts(cts);
+            }
+        }
+
+        private void MnuAutoOff_Click(object? sender, EventArgs e)
+        {
+            var profile = _activeProfile;
+            if (profile == null || _contextFunctionButton?.Tag is not FunctionSlot slot || string.IsNullOrEmpty(slot.SceneName) || string.IsNullOrEmpty(slot.SourceName)) return;
+            var current = GetAutoOffSetting(profile, slot.SceneName, slot.SourceName);
+
+            using var dialog = new Form
+            {
+                Text = "Auto-Off",
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MinimizeBox = false,
+                MaximizeBox = false,
+                ClientSize = new Size(300, 110),
+                ShowInTaskbar = false,
+                TopMost = TopMost
+            };
+            var chk = new CheckBox { Text = "Enable Auto-Off", Location = new Point(12, 12), AutoSize = true, Checked = current?.Enabled ?? false };
+            var lbl = new Label { Text = "Delay:", Location = new Point(12, 43), AutoSize = true };
+            var num = new NumericUpDown { Minimum = 1, Maximum = 3600, Value = Math.Clamp(current?.DelaySeconds ?? 5, 1, 3600), Location = new Point(60, 40), Width = 80 };
+            var lblSec = new Label { Text = "seconds", Location = new Point(146, 43), AutoSize = true };
+            var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, Location = new Point(132, 76), Width = 75 };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Location = new Point(213, 76), Width = 75 };
+            dialog.Controls.AddRange(new Control[] { chk, lbl, num, lblSec, ok, cancel });
+            dialog.AcceptButton = ok;
+            dialog.CancelButton = cancel;
+
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            if (!ReferenceEquals(profile, _activeProfile)) return;
+            if (!profile.SourceAutoOffSettings.TryGetValue(slot.SceneName, out var map) || map == null)
+            {
+                map = new Dictionary<string, SourceAutoOffSetting>();
+                profile.SourceAutoOffSettings[slot.SceneName] = map;
+            }
+            map[slot.SourceName] = new SourceAutoOffSetting { Enabled = chk.Checked, DelaySeconds = (int)num.Value };
+            SaveActiveProfile();
         }
 
         private Button[] _functionButtons = Array.Empty<Button>();
@@ -1372,6 +1569,10 @@ namespace OBSControlDeck
                 var button = _functionButtons[i];
                 ApplyAdaptiveButtonText(button, GetFunctionAlias(_currentProgramSceneName, sourceName) ?? sourceName);
                 button.Tag = new FunctionSlot(_currentProgramSceneName, sourceName, sceneItemId);
+                if (sceneItemId is int mapId)
+                {
+                    lock (_autoOffLock) { _sceneItemSourceMap[new SceneItemKey(_currentProgramSceneName, mapId)] = sourceName; }
+                }
                 button.Enabled = true;
                 UpdateFunctionButtonAppearance(button, null);
                 _ = RequestFunctionEnabledStateAsync(button);
@@ -1596,7 +1797,7 @@ namespace OBSControlDeck
             catch (Exception ex)
             {
                 lock (_pendingFunctionRequests) { _pendingFunctionRequests.Remove(requestId); }
-                ShowError("Lettura stato Source non riuscita: " + DescribeError(ex));
+                ShowError("Failed to read Source state: " + DescribeError(ex));
             }
         }
 
@@ -1697,6 +1898,8 @@ namespace OBSControlDeck
                 var json = File.ReadAllText(file);
                 var p = JsonSerializer.Deserialize<Profile>(json);
                 if (p == null) return;
+                CancelAllAutoOff();
+                lock (_autoOffLock) { _sceneItemSourceMap.Clear(); }
                 _activeProfile = p;
                 _activeProfileName = p.ProfileName;
                 _sceneHotkeyOps.Clear();
@@ -1936,11 +2139,11 @@ namespace OBSControlDeck
 
         private void BtnNewProfile_Click(object? sender, EventArgs e)
         {
-            var name = Prompt.ShowDialog("Nome profilo:", "Nuovo profilo", string.Empty, this);
+            var name = Prompt.ShowDialog("Profile name:", "New profile", string.Empty, this);
             if (string.IsNullOrWhiteSpace(name)) return;
             if (cmbProfile.Items.Contains(name))
             {
-                MessageBox.Show(this, "Profilo già esistente.", "Errore", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, "Profile already exists.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -1953,11 +2156,11 @@ namespace OBSControlDeck
         private void BtnRenameProfile_Click(object? sender, EventArgs e)
         {
             if (cmbProfile.SelectedItem is not string name) return;
-            var newName = Prompt.ShowDialog("Nuovo nome:", "Rinomina profilo", name, this);
+            var newName = Prompt.ShowDialog("New name:", "Rename profile", name, this);
             if (string.IsNullOrWhiteSpace(newName) || newName == name) return;
             if (cmbProfile.Items.Contains(newName))
             {
-                MessageBox.Show(this, "Profilo già esistente.", "Errore", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, "Profile already exists.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -1979,10 +2182,10 @@ namespace OBSControlDeck
             if (cmbProfile.SelectedItem is not string name) return;
             if (cmbProfile.Items.Count == 1)
             {
-                MessageBox.Show(this, "Non è possibile eliminare l'unico profilo.", "Errore", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, "Non è possibile eliminare l'unico profilo.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            var res = MessageBox.Show(this, $"Eliminare il profilo '{name}'?", "Conferma", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            var res = MessageBox.Show(this, $"Delete profile '{name}'?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (res != DialogResult.Yes) return;
 
             try
@@ -2110,7 +2313,7 @@ namespace OBSControlDeck
             }
             catch (Exception ex)
             {
-                ShowError("Invio del comando a OBS non riuscito: " + DescribeError(ex));
+                ShowError("Failed to send command to OBS: " + DescribeError(ex));
             }
         }
 
@@ -2119,17 +2322,17 @@ namespace OBSControlDeck
             var code = (int?)ws.CloseStatus;
             return code switch
             {
-                4009 => "Autenticazione fallita: password errata.",
-                4010 => "Versione RPC non supportata da OBS.",
-                4007 => "OBS ha rifiutato la connessione: identificazione non completata.",
-                _ => $"OBS ha chiuso la connessione{(code.HasValue ? $" (codice {code})" : string.Empty)}."
+                4009 => "Authentication failed: wrong password.",
+                4010 => "RPC version not supported by OBS.",
+                4007 => "OBS rejected the connection: identification not completed.",
+                _ => $"OBS closed the connection{(code.HasValue ? $" (code {code})" : string.Empty)}."
             };
         }
 
         private static string DescribeError(Exception ex) => ex switch
         {
-            WebSocketException => "Impossibile connettersi a OBS. Controlla host, porta e che il server WebSocket sia attivo.",
-            JsonException => "Risposta non valida da OBS.",
+            WebSocketException => "Unable to connect to OBS. Check host, port and that the WebSocket server is enabled.",
+            JsonException => "Invalid response from OBS.",
             _ => ex.Message
         };
 
@@ -2140,9 +2343,9 @@ namespace OBSControlDeck
 
         private void UpdateConnectedUi()
         {
-            lblObsStatus.Text = "● OBS Connesso";
+            lblObsStatus.Text = "● OBS Connected";
             lblObsStatus.ForeColor = Color.Green;
-            btnConnect.Text = "DISCONNETTI";
+            btnConnect.Text = "DISCONNECT";
         }
 
         private void UpdateDisconnectedUi()
@@ -2151,13 +2354,15 @@ namespace OBSControlDeck
             _audioInputs.Clear();
             _audioMuteStates.Clear();
             _audioProbePending = 0;
+            CancelAllAutoOff();
+            lock (_autoOffLock) { _sceneItemSourceMap.Clear(); }
             lock (_audioRequests) { _audioRequests.Clear(); }
             foreach (var combo in AudioCombos()) combo.Items.Clear();
             RefreshAudioButtons();
             foreach (var button in _functionButtons) UpdateFunctionButtonAppearance(button, null);
-            lblObsStatus.Text = "● OBS Disconnesso";
+            lblObsStatus.Text = "● OBS Disconnected";
             lblObsStatus.ForeColor = Color.Red;
-            btnConnect.Text = "CONNETTI";
+            btnConnect.Text = "CONNECT";
             chkUnlockFunctionLayout.Checked = false;
             _isReplayBufferActive = false;
             _replayBusy = false;
@@ -2236,7 +2441,7 @@ namespace OBSControlDeck
             {
                 lock (_audioRequests) { _audioRequests.Remove(requestId); }
                 if (kind == AudioRequestKind.Probe) ResolveAudioProbe();
-                else ShowError("Richiesta audio non inviata a OBS: " + DescribeError(ex));
+                else ShowError("Audio request not sent to OBS: " + DescribeError(ex));
             }
         }
 
@@ -2259,7 +2464,7 @@ namespace OBSControlDeck
             if (d["requestStatus"]?["result"]?.GetValue<bool>() != true)
             {
                 var comment = d["requestStatus"]?["comment"]?.GetValue<string>();
-                ShowError("OBS non ha restituito l'elenco input audio." + (string.IsNullOrEmpty(comment) ? string.Empty : " " + comment));
+                ShowError("OBS did not return the audio input list." + (string.IsNullOrEmpty(comment) ? string.Empty : " " + comment));
                 return;
             }
 
@@ -2316,11 +2521,11 @@ namespace OBSControlDeck
                     break;
                 case AudioRequestKind.Toggle:
                     if (ok && muted != null) _ = SendAudioRequestAsync(req.InputName, AudioRequestKind.Set, !muted.Value, ws, ct);
-                    else ReportAudioError("OBS non ha restituito lo stato mute dell'input.", d);
+                    else ReportAudioError("OBS did not return the input mute state.", d);
                     break;
                 case AudioRequestKind.Set:
                     if (ok) _ = SendAudioRequestAsync(req.InputName, AudioRequestKind.Confirm, false, ws, ct);
-                    else ReportAudioError("OBS non ha modificato lo stato mute dell'input.", d);
+                    else ReportAudioError("OBS did not change the input mute state.", d);
                     break;
             }
         }
@@ -2414,6 +2619,9 @@ namespace OBSControlDeck
             _mnuRemoveHotkey.Enabled = scene is { } rs ? GetSlotHotkey(rs.Slot) != null : !string.IsNullOrEmpty(_activeProfile?.ReplayHotkeyName);
             mnuRenameButton.Enabled = enabled;
             mnuResetButtonName.Enabled = enabled;
+            var isFunction = _contextFunctionButton?.Tag is FunctionSlot fs && !string.IsNullOrEmpty(fs.SceneName) && !string.IsNullOrEmpty(fs.SourceName);
+            _mnuAutoOff.Visible = isFunction;
+            _mnuAutoOff.Enabled = isFunction;
         }
 
         private void MnuAssignHotkey_Click(object? sender, EventArgs e)

@@ -124,6 +124,7 @@
             lblAboutAuthor = new Label();
             lnkGitHub = new LinkLabel();
             lnkObsForum = new LinkLabel();
+            lnkSupportProject = new LinkLabel();
             lblAboutOpenSource = new Label();
             lblAboutDisclaimer = new Label();
             lblAboutDevelopment = new Label();
@@ -152,7 +153,7 @@
             lblObsStatus.Name = "lblObsStatus";
             lblObsStatus.Size = new Size(136, 20);
             lblObsStatus.TabIndex = 1;
-            lblObsStatus.Text = "● OBS Disconnesso";
+            lblObsStatus.Text = "● OBS Disconnected";
             // 
             // tabMain
             // 
@@ -715,7 +716,7 @@
             grpProfiles.Size = new Size(245, 127);
             grpProfiles.TabIndex = 6;
             grpProfiles.TabStop = false;
-            grpProfiles.Text = "POFILES";
+            grpProfiles.Text = "PROFILES";
             // 
             // btnDeleteProfile
             // 
@@ -782,7 +783,7 @@
             grpConnection.Size = new Size(240, 161);
             grpConnection.TabIndex = 5;
             grpConnection.TabStop = false;
-            grpConnection.Text = "CONNESSIONE OBS";
+            grpConnection.Text = "OBS CONNECTION";
             // 
             // txtHost
             // 
@@ -810,7 +811,7 @@
             lblPorta.Name = "lblPorta";
             lblPorta.Size = new Size(43, 20);
             lblPorta.TabIndex = 2;
-            lblPorta.Text = "Porta";
+            lblPorta.Text = "Port";
             // 
             // txtPort
             // 
@@ -846,7 +847,7 @@
             btnConnect.Name = "btnConnect";
             btnConnect.Size = new Size(215, 32);
             btnConnect.TabIndex = 6;
-            btnConnect.Text = "CONNETTI";
+            btnConnect.Text = "CONNECT";
             btnConnect.UseVisualStyleBackColor = true;
             // 
             // grpAbout
@@ -856,6 +857,7 @@
             grpAbout.Controls.Add(lblAboutOpenSource);
             grpAbout.Controls.Add(lnkObsForum);
             grpAbout.Controls.Add(lnkGitHub);
+            grpAbout.Controls.Add(lnkSupportProject);
             grpAbout.Controls.Add(lblAboutAuthor);
             grpAbout.Controls.Add(lblAboutVersion);
             grpAbout.Controls.Add(lblAboutProduct);
@@ -863,7 +865,7 @@
             grpAbout.Margin = new Padding(3, 4, 3, 4);
             grpAbout.Name = "grpAbout";
             grpAbout.Padding = new Padding(3, 4, 3, 4);
-            grpAbout.Size = new Size(240, 260);
+            grpAbout.Size = new Size(240, 275);
             grpAbout.TabIndex = 9;
             grpAbout.TabStop = false;
             grpAbout.Text = "ABOUT";
@@ -918,10 +920,21 @@
             lnkObsForum.Text = "OBS Forum";
             lnkObsForum.LinkClicked += lnkObsForum_LinkClicked;
             // 
+            // lnkSupportProject
+            // 
+            lnkSupportProject.AutoSize = true;
+            lnkSupportProject.Location = new Point(9, 130);
+            lnkSupportProject.Name = "lnkSupportProject";
+            lnkSupportProject.Size = new Size(120, 20);
+            lnkSupportProject.TabIndex = 5;
+            lnkSupportProject.TabStop = true;
+            lnkSupportProject.Text = "Support this project";
+            lnkSupportProject.LinkClicked += lnkSupportProject_LinkClicked;
+            // 
             // lblAboutOpenSource
             // 
             lblAboutOpenSource.AutoSize = true;
-            lblAboutOpenSource.Location = new Point(9, 130);
+            lblAboutOpenSource.Location = new Point(9, 154);
             lblAboutOpenSource.Name = "lblAboutOpenSource";
             lblAboutOpenSource.Size = new Size(130, 20);
             lblAboutOpenSource.TabIndex = 5;
@@ -931,7 +944,7 @@
             // 
             lblAboutDisclaimer.Font = new Font("Segoe UI", 8F);
             lblAboutDisclaimer.ForeColor = SystemColors.GrayText;
-            lblAboutDisclaimer.Location = new Point(9, 162);
+            lblAboutDisclaimer.Location = new Point(9, 186);
             lblAboutDisclaimer.Name = "lblAboutDisclaimer";
             lblAboutDisclaimer.Size = new Size(225, 36);
             lblAboutDisclaimer.TabIndex = 6;
@@ -941,7 +954,7 @@
             // 
             lblAboutDevelopment.Font = new Font("Segoe UI", 8F);
             lblAboutDevelopment.ForeColor = SystemColors.GrayText;
-            lblAboutDevelopment.Location = new Point(9, 202);
+            lblAboutDevelopment.Location = new Point(9, 226);
             lblAboutDevelopment.Name = "lblAboutDevelopment";
             lblAboutDevelopment.Size = new Size(225, 36);
             lblAboutDevelopment.TabIndex = 7;
@@ -995,6 +1008,7 @@
         private Label lblAboutAuthor;
         private LinkLabel lnkGitHub;
         private LinkLabel lnkObsForum;
+        private LinkLabel lnkSupportProject;
         private Label lblAboutOpenSource;
         private Label lblAboutDisclaimer;
         private Label lblAboutDevelopment;
