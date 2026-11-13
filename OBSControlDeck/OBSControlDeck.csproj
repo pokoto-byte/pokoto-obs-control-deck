@@ -11,9 +11,9 @@
     <Product>Pokoto OBS Control Deck</Product>
     <Company>Pokoto</Company>
     <Copyright>Copyright © 2026 Pokoto</Copyright>
-    <Version>1.0.2</Version>
-    <AssemblyVersion>1.0.2.0</AssemblyVersion>
-    <FileVersion>1.0.2.0</FileVersion>
+    <Version>1.0.3</Version>
+    <AssemblyVersion>1.0.3.0</AssemblyVersion>
+    <FileVersion>1.0.3.0</FileVersion>
     <AssemblyTitle>Pokoto OBS Control Deck</AssemblyTitle>
   </PropertyGroup>
 

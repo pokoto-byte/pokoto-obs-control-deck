@@ -8,6 +8,7 @@ namespace OBSControlDeck
         public string? SceneName { get; set; }
         public string? HotkeyName { get; set; }
         public string? HotkeyOnlyDisplayName { get; set; }
+        public int? FontSize { get; set; }
     }
 
     public class SourceAutoOffSetting
@@ -69,6 +70,9 @@ namespace OBSControlDeck
             set => _sourceAutoOffSettings = value ?? new();
         }
         public bool SceneAliasesMigrated { get; set; } = false;
+
+        public Dictionary<string, int> FunctionButtonFontSizes { get; set; } = new();
+        public int? ReplayButtonFontSize { get; set; }
 
         // Future extensible
     }

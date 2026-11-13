@@ -35,6 +35,8 @@ namespace OBSControlDeck
         private readonly List<string> _obsHotkeys = new();
         private readonly ToolStripMenuItem _mnuAssignHotkey = new("Assign Hotkey...");
         private readonly ToolStripMenuItem _mnuRemoveHotkey = new("Remove Hotkey");
+        private readonly ToolStripMenuItem _mnuFontIncrease = new("Font +");
+        private readonly ToolStripMenuItem _mnuFontDecrease = new("Font -");
         private static readonly Color SaveReplaySavedColor = Color.FromArgb(0, 143, 61);
         private static readonly Color SaveReplayErrorColor = Color.FromArgb(166, 31, 43);
         private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(10);
@@ -180,7 +182,9 @@ namespace OBSControlDeck
             _mnuAssignHotkey.Click += MnuAssignHotkey_Click;
             _mnuRemoveHotkey.Click += MnuRemoveHotkey_Click;
             _mnuAutoOff.Click += MnuAutoOff_Click;
-                        cmsButtonRename.Items.AddRange(new ToolStripItem[] { _mnuAssignHotkey, _mnuRemoveHotkey, _mnuAutoOff });
+            _mnuFontIncrease.Click += MnuFontIncrease_Click;
+            _mnuFontDecrease.Click += MnuFontDecrease_Click;
+                        cmsButtonRename.Items.AddRange(new ToolStripItem[] { _mnuAssignHotkey, _mnuRemoveHotkey, _mnuAutoOff, _mnuFontIncrease, _mnuFontDecrease });
 
             // legacy: try to read standalone password file if present and no profile provided it
             try
@@ -1529,6 +1533,8 @@ namespace OBSControlDeck
         private readonly Dictionary<Button, string> _buttonOriginalText = new();
         private readonly ToolTip _buttonToolTip = new();
         private const float MinButtonFontSize = 7F;
+        private const int MinCustomFontSize = 6;
+        private const int MaxCustomFontSize = 24;
 
         private void RefreshFunctionButtons()
         {
@@ -1686,6 +1692,13 @@ namespace OBSControlDeck
                 _baseButtonFonts[button] = baseFont;
             }
             _buttonOriginalText[button] = text;
+
+            var customFontSize = GetCustomFontSize(button);
+            if (customFontSize.HasValue && customFontSize.Value != baseFont.Size)
+            {
+                baseFont = new Font(baseFont.FontFamily, customFontSize.Value, baseFont.Style, baseFont.Unit);
+                _baseButtonFonts[button] = baseFont;
+            }
 
             var area = new Size(Math.Max(1, button.ClientSize.Width - 6), Math.Max(1, button.ClientSize.Height - 4));
             var font = baseFont;
@@ -1955,6 +1968,30 @@ namespace OBSControlDeck
             return string.IsNullOrEmpty(name) ? null : name;
         }
 
+        private int? GetCustomFontSize(Button button)
+        {
+            if (_activeProfile == null) return null;
+
+            var sceneSlot = GetSceneSlot(button);
+            if (sceneSlot != null)
+            {
+                return GetSceneSlotData(sceneSlot.Value.Slot)?.FontSize;
+            }
+
+            if (button == btnSaveReplay)
+            {
+                return _activeProfile.ReplayButtonFontSize;
+            }
+
+            if (button.Tag is FunctionSlot fs)
+            {
+                var key = $"{fs.SceneName}|{fs.SourceName}";
+                return _activeProfile.FunctionButtonFontSizes.TryGetValue(key, out var size) ? size : null;
+            }
+
+            return null;
+        }
+
         private void StoreSlotData(int slot, Action<SceneButtonSlot> update)
         {
             var p = _activeProfile;
@@ -1981,7 +2018,7 @@ namespace OBSControlDeck
                 if (p.SceneButtonSlots is { Count: SceneSlotCount })
                 {
                     var src = p.SceneButtonSlots[i];
-                    if (src != null) s = new SceneButtonSlot { SceneName = src.SceneName, HotkeyName = src.HotkeyName, HotkeyOnlyDisplayName = src.HotkeyOnlyDisplayName };
+                    if (src != null) s = new SceneButtonSlot { SceneName = src.SceneName, HotkeyName = src.HotkeyName, HotkeyOnlyDisplayName = src.HotkeyOnlyDisplayName, FontSize = src.FontSize };
                 }
                 else if (p.SceneSlotOrder is { Count: SceneSlotCount } && p.SceneSlotOrder[i] != null)
                 {
@@ -2618,11 +2655,16 @@ namespace OBSControlDeck
             _mnuRemoveHotkey.Visible = isReplay || scene != null;
             _mnuRemoveHotkey.Enabled = scene is { } rs ? GetSlotHotkey(rs.Slot) != null : !string.IsNullOrEmpty(_activeProfile?.ReplayHotkeyName);
             mnuRenameButton.Enabled = enabled;
-            mnuResetButtonName.Enabled = enabled;
-            var isFunction = _contextFunctionButton?.Tag is FunctionSlot fs && !string.IsNullOrEmpty(fs.SceneName) && !string.IsNullOrEmpty(fs.SourceName);
-            _mnuAutoOff.Visible = isFunction;
-            _mnuAutoOff.Enabled = isFunction;
-        }
+                mnuResetButtonName.Enabled = enabled;
+                var isFunction = _contextFunctionButton?.Tag is FunctionSlot fs && !string.IsNullOrEmpty(fs.SceneName) && !string.IsNullOrEmpty(fs.SourceName);
+                _mnuAutoOff.Visible = isFunction;
+                _mnuAutoOff.Enabled = isFunction;
+                var canAdjustFont = isReplay || scene != null || isFunction;
+                _mnuFontIncrease.Visible = canAdjustFont;
+                _mnuFontIncrease.Enabled = canAdjustFont;
+                _mnuFontDecrease.Visible = canAdjustFont;
+                _mnuFontDecrease.Enabled = canAdjustFont;
+            }
 
         private void MnuAssignHotkey_Click(object? sender, EventArgs e)
         {
@@ -2682,12 +2724,61 @@ namespace OBSControlDeck
                 SaveActiveProfile();
                 RefreshSceneButtons();
                 return;
+                }
+                _activeProfile.ReplayHotkeyName = null;
+                SaveActiveProfile();
             }
-            _activeProfile.ReplayHotkeyName = null;
-            SaveActiveProfile();
-        }
 
-        private (int Slot, Button Button)? GetSceneSlot(Button? button)
+            private void MnuFontIncrease_Click(object? sender, EventArgs e)
+            {
+                ChangeFontSize(1);
+            }
+
+            private void MnuFontDecrease_Click(object? sender, EventArgs e)
+            {
+                ChangeFontSize(-1);
+            }
+
+            private void ChangeFontSize(int delta)
+            {
+                if (_activeProfile == null || _contextFunctionButton == null) return;
+
+                var sceneSlot = GetSceneSlot(_contextFunctionButton);
+                if (sceneSlot != null)
+                {
+                    StoreSlotData(sceneSlot.Value.Slot, d =>
+                    {
+                        var current = d.FontSize ?? (int)_contextFunctionButton.Font.Size;
+                        var newSize = Math.Clamp(current + delta, MinCustomFontSize, MaxCustomFontSize);
+                        d.FontSize = newSize;
+                    });
+                    SaveActiveProfile();
+                    RefreshSceneButtons();
+                    return;
+                }
+
+                if (_contextFunctionButton == btnSaveReplay)
+                {
+                    var current = _activeProfile.ReplayButtonFontSize ?? (int)_contextFunctionButton.Font.Size;
+                    var newSize = Math.Clamp(current + delta, MinCustomFontSize, MaxCustomFontSize);
+                    _activeProfile.ReplayButtonFontSize = newSize;
+                    SaveActiveProfile();
+                    ApplyAdaptiveButtonText(_contextFunctionButton, _buttonOriginalText.TryGetValue(_contextFunctionButton, out var text) ? text : _contextFunctionButton.Text);
+                    return;
+                }
+
+                if (_contextFunctionButton.Tag is FunctionSlot fs)
+                {
+                    var key = $"{fs.SceneName}|{fs.SourceName}";
+                    var current = _activeProfile.FunctionButtonFontSizes.TryGetValue(key, out var size) ? size : (int)_contextFunctionButton.Font.Size;
+                    var newSize = Math.Clamp(current + delta, MinCustomFontSize, MaxCustomFontSize);
+                    _activeProfile.FunctionButtonFontSizes[key] = newSize;
+                    SaveActiveProfile();
+                    ApplyAdaptiveButtonText(_contextFunctionButton, _buttonOriginalText.TryGetValue(_contextFunctionButton, out var text) ? text : _contextFunctionButton.Text);
+                }
+            }
+
+            private (int Slot, Button Button)? GetSceneSlot(Button? button)
         {
             foreach (var (b, slot) in SceneSlots())
             {
